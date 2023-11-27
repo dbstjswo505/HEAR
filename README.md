@@ -1,2 +1,2 @@
 # HEAR
-[STARLAB] Audio Enhancement for video-dialogue system 
+[STARLAB] Audio Enhancement Module for video-dialogue system 
