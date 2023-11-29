@@ -3,7 +3,7 @@
 
 ## Training
 ```
-python train
+python train.py
 ```
 
 ## Response Generate
