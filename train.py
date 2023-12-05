@@ -56,8 +56,8 @@ def train():
     parser.add_argument("--fea_path", type=str, default="data/", help="Path of the trainset")
     parser.add_argument("--model_checkpoint", type=str, default="t5-large", help="Path, url or short name of the model")
     parser.add_argument("--max_history", type=int, default=3, help="Number of previous exchanges to keep in history")
-    parser.add_argument("--train_batch_size", type=int, default=4, help="Batch size for training")
-    parser.add_argument("--valid_batch_size", type=int, default=4, help="Batch size for validation")
+    parser.add_argument("--train_batch_size", type=int, default=3, help="Batch size for training")
+    parser.add_argument("--valid_batch_size", type=int, default=3, help="Batch size for validation")
     parser.add_argument("--drop_rate", type=float, default=0.5, help="drop rate for caption")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=8, help="Accumulate gradients on several steps")
     parser.add_argument("--lr", type=float, default=6.25e-5, help="Learning rate")
@@ -67,7 +67,7 @@ def train():
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda or cpu)")
     parser.add_argument("--fp16", type=str, default="", help="Set to O0, O1, O2 or O3 for fp16 training (see apex documentation)")
     parser.add_argument("--local_rank", type=int, default=-1, help="Local rank for distributed training (-1: not distributed)")
-    parser.add_argument("--log_path", type=str, default="log/exp", help="Log path")
+    parser.add_argument("--log_path", type=str, default="log/exp2", help="Log path")
     parser.add_argument("--LE", action='store_true', help="If true start Listening Enhancement")
     args = parser.parse_args()
 
@@ -119,11 +119,16 @@ def train():
         RLE_input = batch[4].to(args.device)
         RLE_labels = batch[5].to(args.device)
         AR_mask = batch[6].to(args.device)
+        RLE_input_bound = batch[7].to(args.device)
         
         # copy for alternative training
         aud_input_ids = copy.deepcopy(input_ids)
+        aud_input_bound_ids = copy.deepcopy(input_ids)
+
         input_embs = model.encoder.embed_tokens(input_ids)
         aud_input_embs = model.encoder.embed_tokens(aud_input_ids)
+        aud_input_bound_embs = model.encoder.embed_tokens(aud_input_bound_ids)
+
 
         i3d_embs = model.video_ff(i3d)
         input_embs = torch.cat([i3d_embs, input_embs], dim=1)
@@ -132,7 +137,13 @@ def train():
         if iteration_odd == 1:
             RLE_embs = model.video_ff(RLE_input)
             RLE_input_embs = torch.cat([RLE_embs, aud_input_embs], dim=1)
-            loss = model(inputs_embeds=input_embs, labels=labels, attention_mask=input_mask, aud=RLE_labels, is_LE=True, inputs_aud_embeds=RLE_input_embs, AR_mask=AR_mask, epoch=engine.state.epoch).loss
+
+            RLE_bound_embs = model.video_ff(RLE_input_bound)
+            RLE_input_bound_embs = torch.cat([RLE_bound_embs, aud_input_bound_embs], dim=1)
+
+            target_loss = model(inputs_embeds=input_embs, labels=labels, attention_mask=input_mask, aud=RLE_labels, is_LE=True, inputs_aud_embeds=RLE_input_embs, AR_mask=AR_mask, epoch=engine.state.epoch)
+            bound_loss = model(inputs_embeds=input_embs, labels=labels, attention_mask=input_mask, aud=RLE_labels, is_LE=True, inputs_aud_embeds=RLE_input_bound_embs, AR_mask=AR_mask, epoch=engine.state.epoch)
+            loss = torch.clip(target_loss - bound_loss + 0.01, min=0)
         else:
             loss = model(inputs_embeds=input_embs, labels=labels, attention_mask=input_mask).loss
 
@@ -177,7 +188,7 @@ def train():
             RLE_embs = model.video_ff(RLE_input)
             RLE_input_embs = torch.cat([RLE_embs, aud_input_embs], dim=1)
 
-            lm_logits = model(inputs_embeds=input_embs, labels=labels, attention_mask=input_mask, is_val=True, aud=RLE_labels, is_LE=True, inputs_aud_embeds=RLE_input_embs, AR_mask=AR_mask, epoch=engine.state.epoch).logits
+            lm_logits = model(inputs_embeds=input_embs, labels=labels, attention_mask=input_mask, is_val=True, aud=RLE_labels, is_LE=False, inputs_aud_embeds=RLE_input_embs, AR_mask=AR_mask, epoch=engine.state.epoch).logits
             lm_logits_flat = lm_logits.view(-1, lm_logits.size(-1))
             lm_labels_flat = labels.view(-1)
             return lm_logits_flat, lm_labels_flat
@@ -199,9 +210,6 @@ def train():
     RunningAverage(output_transform=lambda x: x).attach(trainer, "loss")
     
     if args.LE:
-        #val_acc = Average(output_transform=lambda x: x)
-        #val_acc.attach(evaluator, "avg")
-        #metrics = {"val_loss": val_acc}
         metrics = {"nll": Loss(torch.nn.CrossEntropyLoss(ignore_index=-100), output_transform=lambda x: (x[0], x[1]))}
         metrics.update({"average_nll": MetricsLambda(average_distributed_scalar, metrics["nll"], args)})
         metrics["average_ppl"] = MetricsLambda(math.exp, metrics["average_nll"])

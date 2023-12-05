@@ -221,7 +221,6 @@ def generate_response(model, data, dataset, args, ref_data=None):
             i3d_rgb = torch.from_numpy(sample_i3d_rgb).float().cuda()
             min_length = min([i3d_flow.size(0), i3d_rgb.size(0), vgg.size(0)])
             i3d = torch.cat([i3d_flow[:min_length], i3d_rgb[:min_length], vgg[:min_length]], dim=1).unsqueeze(0)
-            #i3d = torch.cat([i3d_flow[:min_length], i3d_rgb[:min_length]], dim=1).unsqueeze(0)
 
             for t, qa in enumerate(out_dialog):
                 logging_.info('%d %s_%d' % (qa_id, vid, t))
@@ -234,36 +233,24 @@ def generate_response(model, data, dataset, args, ref_data=None):
 
                 input_ids = torch.tensor(instance['input_ids'], device=args.device).unsqueeze(0)
                 i3d = i3d.view(1, -1, 4224)
-                #i3d = i3d.view(1, -1, 4096)
 
                 input_embs = model.encoder.embed_tokens(input_ids)
                 i3d_embs = model.video_ff(i3d)
                 input_embs = torch.cat([i3d_embs, input_embs], dim=1)
                 
-                #pdb.set_trace()
                 out_sent = model.generate(inputs_embeds=input_embs, num_beams=5)
-                #out_sent = model.generate(input_ids=input_ids, num_beams=5)
                 out_sent = tokenizer.batch_decode(out_sent, skip_special_tokens=True)
 
                 logging_.info(out_sent[0])
 
                 pred_dialog['dialog'][t]['answer'] = out_sent[0]
 
-                #logging_.info(dialog['a%d'%dialog['answer_idx']])
-                #logging_.info('HYP/GT: %d / %d'%(pred, dialog['answer_idx']))
-                #logging.info('GT: %d'%dialog['answer_idx'])
-                #logging.info('GT: ' + GT)
-                #pred_dialog['dialog'][t]['answer'] = hypstr
                 logging_.info('ElapsedTime: %f' % (time.time() - start_time))
                 logging_.info('-----------------------')
 
-                #ipdb.set_trace()
-    #ipdb.set_trace()
     return {'dialogs': result_dialogs}
-    #return preds, refs
 
 
-##################################
 # main
 if __name__ =="__main__":
     parser = ArgumentParser()
@@ -271,7 +258,6 @@ if __name__ =="__main__":
     parser.add_argument("--model_checkpoint", type=str, default="log_without_caption_with_valid/", help="Path, url or short name of the model")
     parser.add_argument("--max_history", type=int, default=3, help="Number of previous utterances to keep in history")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="Device (cuda or cpu)")
-
     parser.add_argument("--no_sample", action='store_true', help="Set to use greedy decoding instead of sampling")
     parser.add_argument("--beam_search", action='store_true', help="Set to use beam search instead of sampling")
     parser.add_argument("--beam_size", type=int, default=5, help="Beam size")
@@ -282,8 +268,7 @@ if __name__ =="__main__":
     parser.add_argument("--temperature", type=int, default=0.7, help="Sampling softmax temperature")
     parser.add_argument("--top_k", type=int, default=0, help="Filter top-k tokens before sampling (<=0: no filtering)")
     parser.add_argument("--top_p", type=float, default=0.9, help="Nucleus filtering (top-p) before sampling (<=0.0: no filtering)")
-    #parser.add_argument("--test_set", type=str, default="data_tvqa/tvqa_test_public_processed.json")
-    parser.add_argument("--test_set", type=str, default="data/ACL_dataset/sota_dataset/test_set4DSTC8-AVSD.json")
+    parser.add_argument("--test_set", type=str, default="data/HEAR_dataset/SNE_dataset/test_set4DSTC7-AVSD.json")
     parser.add_argument("--lbl_test_set", type=str, default="data/lbl_undisclosedonly_test_set4DSTC8-AVSD.json")
     parser.add_argument("--output", type=str, default="result.json")
     
@@ -296,14 +281,12 @@ if __name__ =="__main__":
  
     logging_.info('Loading model params from ' + args.model_checkpoint)
     
-    #tokenizer_class = GPT2Tokenizer if "gpt2" == args.model else OpenAIGPTTokenizer
     tokenizer_class = T5TokenizerFast
     tokenizer = tokenizer_class.from_pretrained(args.model_checkpoint)
     tokenizer.add_special_tokens(SPECIAL_TOKENS_DICT)
-    #model_class = VideoGPT2LMHeadModel if "gpt2" == args.model else OpenAIGPTLMHeadModel
     model_class = T5ForConditionalGeneration_AVSD
     model_config = T5Config.from_pretrained(args.model_checkpoint)
-    model = model_class.from_pretrained(args.model_checkpoint+"checkpoint_mymodel_5.pth", config=model_config)
+    model = model_class.from_pretrained(args.model_checkpoint+"checkpoint_mymodel_4.pth", config=model_config)
     model.to(args.device)
     model.eval()
 

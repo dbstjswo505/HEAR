@@ -14,6 +14,7 @@ import sys
 import pdb
 import ipdb
 import random
+import copy
 
 SPECIAL_TOKENS = ["<bos>", "<eos>", "<speaker1>", "<speaker2>","<cap>", "<video>", "<pad>"]
 SPECIAL_TOKENS_DICT = {'bos_token': "<bos>", 'eos_token': "<eos>", 'additional_special_tokens': ["<speaker1>", "<speaker2>", "<video>", "<cap>"], 'pad_token': "<pad>"}
@@ -30,7 +31,18 @@ def tokenize(obj,tokenizer):
 def _get_aud_mask(mask_prob, num_frame):
     img_mask = [random.random() < mask_prob for _ in range(num_frame)]
     img_mask = torch.tensor(img_mask)
-    return img_mask
+
+    img_mask_l = torch.zeros(img_mask.shape, dtype=img_mask.dtype)
+    img_mask_l[:-1] = img_mask[1:]
+    img_mask_l[-1] = False
+    
+    img_mask_r = torch.zeros(img_mask.shape, dtype=img_mask.dtype)
+    img_mask_r[1:] = img_mask[:-1]
+    img_mask_l[0] = False
+
+    img_mask_bound = (img_mask + img_mask_l + img_mask_r) > 0
+
+    return img_mask, img_mask_bound
 
 def _mask_aud_feat(img_feat, img_masks):
     img_masks_ext = img_masks.unsqueeze(-1).expand_as(img_feat)
@@ -151,11 +163,15 @@ class AVSDDataSet(Dataset):
             
             # Label and input for Reconstructive Listening Enhancement (RLE)
             RLE_label = vgg[:min_length]
-            
-            AR_mask = _get_aud_mask(0.1, min_length)
+            AR_mask, AR_mask_bound = _get_aud_mask(0.1, min_length)
             RLE_input = vgg[:min_length]
+            RLE_input_bound = copy.deepcopy(RLE_input)
+
             RLE_input = _mask_aud_feat(RLE_input, AR_mask)
             RLE_input = torch.cat([i3d_flow[:min_length], i3d_rgb[:min_length], RLE_input[:min_length]], dim=1)
+            
+            RLE_input_bound = _mask_aud_feat(RLE_input_bound, AR_mask_bound)
+            RLE_input_bound = torch.cat([i3d_flow[:min_length], i3d_rgb[:min_length], RLE_input_bound[:min_length]], dim=1)
             
             # Input for Sensible Audio Listening (SAL)
             pad = torch.cat([i3d_flow[:min_length], i3d_rgb[:min_length], vgg[:min_length]], dim=1)
@@ -172,7 +188,8 @@ class AVSDDataSet(Dataset):
             pad[:,4096:] = audio_score
             pad[:,:4096] = 1 - audio_score
             i3d = i3d * pad
-            return input_ids, lm_labels, i3d, RLE_input, RLE_label, AR_mask
+
+            return input_ids, lm_labels, i3d, RLE_input, RLE_label, AR_mask, RLE_input_bound
         else:
             return input_ids, lm_labels
 
@@ -199,7 +216,7 @@ def collate_fn(batch, pad_token, features=None):
         return result
 
     input_ids_list, token_type_ids_list, lm_labels_list, i3d_list = [], [], [], []
-    RLE_input_list, RLE_labels_list, AR_mask_list = [], [], []
+    RLE_input_list, RLE_labels_list, AR_mask_list, RLE_input_bound_list = [], [], [], []
     for i in batch:
         input_ids_list.append(i[0])
         lm_labels_list.append(i[1])
@@ -209,6 +226,7 @@ def collate_fn(batch, pad_token, features=None):
             RLE_input_list.append(i[3])
             RLE_labels_list.append(i[4])
             AR_mask_list.append(i[5])
+            RLE_input_bound_list.append(i[6])
 
     input_ids = padding(input_ids_list, pad_token)
     lm_labels = padding(lm_labels_list, -100)
@@ -219,9 +237,10 @@ def collate_fn(batch, pad_token, features=None):
         i3d_mask = torch.sum(i3d != 1, dim=2) != 0
         RLE_input = padding(RLE_input_list, pad_token)
         RLE_labels = padding(RLE_labels_list, pad_token)
+        RLE_input_bound = padding(RLE_input_bound_list, pad_token)
         AR_mask = padding(AR_mask_list, False)
         input_mask = torch.cat([i3d_mask, input_mask], dim=1)
-        return input_ids, lm_labels, input_mask, i3d, RLE_input, RLE_labels, AR_mask
+        return input_ids, lm_labels, input_mask, i3d, RLE_input, RLE_labels, AR_mask, RLE_input_bound
     else:
         return input_ids, lm_labels, input_mask
 

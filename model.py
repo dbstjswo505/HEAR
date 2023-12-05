@@ -1664,11 +1664,14 @@ class T5ForConditionalGeneration_AVSD(T5PreTrainedModel):
         hidden_states = encoder_outputs[0]
         if inputs_aud_embeds is not None:
             aud_hidden_states = aud_encoder_outputs[0]
+
+        # Reconstructive Listening Enhancement
         if is_LE:
             LE_loss = self.ar_loss(aud_hidden_states, aud, AR_mask)
-            dec=(1/8)**(int(epoch))
+            # gradual decreasing
+            dec=(1/2)**(int(epoch))
             LE_loss = LE_loss*dec
-            #return loss
+            return LE_loss
 
         if self.model_parallel:
             torch.cuda.set_device(self.decoder.first_device)
@@ -1714,18 +1717,6 @@ class T5ForConditionalGeneration_AVSD(T5PreTrainedModel):
         )
 
         sequence_output = decoder_outputs[0]
-#        if is_val:
-#            pdb.set_trace()
-#            tmp = sequence_output
-#            tmp  = tmp.cpu()
-#            import numpy as np
-#            from scipy.io import savemat
-#            tmp = np.array(tmp)
-#            #mdic = {'RLM': tmp}
-#            #savemat('RLM_features.mat', mdic)
-#            mdic = {'HLM': tmp}
-#            savemat('HLM_features.mat', mdic)
-#            z=1
 
         # Set device for model parallelism
         if self.model_parallel:
@@ -1746,7 +1737,6 @@ class T5ForConditionalGeneration_AVSD(T5PreTrainedModel):
             loss = loss_fct(lm_logits.view(-1, lm_logits.size(-1)), labels.view(-1))
             if is_LE:
                 loss = loss + LE_loss
-            # TODO(thom): Add z_loss https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/layers.py#L666
         if not return_dict:
             output = (lm_logits,) + decoder_outputs[1:] + encoder_outputs
             return ((loss,) + output) if loss is not None else output
