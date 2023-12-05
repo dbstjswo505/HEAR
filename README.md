@@ -23,6 +23,9 @@ python generate.py
 
 ## Evaluation
 result.json file should be in './dstc7avsd_eval/sample' folder
+
+result.json file should be in './dstc8avsd_eval/sample' folder
 ```
 bash dstc7avsd_eval/dstc7avsd_eval.sh
+bash dstc8avsd_eval/dstc8avsd_eval.sh
 ```
