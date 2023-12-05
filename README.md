@@ -1,4 +1,4 @@
-# HEAR
+# HEAR: Hearing Enhanced Audio Response for Video-grounded Dialogue, EMNLP 2023 (long, findings)
 [STARLAB] Audio Enhancement Module for video-dialogue system
 
 # Dataset setting
