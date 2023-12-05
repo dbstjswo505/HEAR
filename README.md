@@ -1,5 +1,4 @@
 # HEAR: Hearing Enhanced Audio Response for Video-grounded Dialogue, EMNLP 2023 (long, findings)
-[STARLAB] Audio Enhancement Module for video-dialogue system
 
 # Dataset setting
 The annotation file is in 'data' folder
@@ -29,3 +28,8 @@ result.json file should be in './dstc8avsd_eval/sample' folder
 bash dstc7avsd_eval/dstc7avsd_eval.sh
 bash dstc8avsd_eval/dstc8avsd_eval.sh
 ```
+
+# Acknowledgement
+This work was supported by Institute for Information & communications Technology Promotion(IITP) grant funded by the Korea government(MSIT) (No. 2021-0-01381, Development of Causal AI through Video Understanding and Reinforcement Learning, and Its Applications to Real Environments) and partly supported by a grant of the KAIST-KT joint research project through AI2XL Laboratory, Institute of convergence Technology, funded by KT [Project No. G01220646, Visual Dialogue System: Developing Visual and Language Capabilities for AI-Based Dialogue Systems]
+
+# Citation
