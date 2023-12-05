@@ -3,10 +3,12 @@
 
 # Dataset setting
 The annotation file is in 'data' folder
+
 The features are in the [link](https://drive.google.com/drive/u/2/folders/1JGE4eeelA0QBA7BwYvj89kSClE3f9k65)
 
 # Settings
 Use conda environment 'environment.yaml' for training and generation
+
 Use conda environment 'eval_environment.yaml' for evaluation
 
 ## Training
