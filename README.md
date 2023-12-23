@@ -33,3 +33,5 @@ bash dstc8avsd_eval/dstc8avsd_eval.sh
 This work was supported by Institute for Information & communications Technology Promotion(IITP) grant funded by the Korea government(MSIT) (No. 2021-0-01381, Development of Causal AI through Video Understanding and Reinforcement Learning, and Its Applications to Real Environments) and partly supported by a grant of the KAIST-KT joint research project through AI2XL Laboratory, Institute of convergence Technology, funded by KT [Project No. G01220646, Visual Dialogue System: Developing Visual and Language Capabilities for AI-Based Dialogue Systems]
 
 # Citation
+
+{
