@@ -34,10 +34,15 @@ This work was supported by Institute for Information & communications Technology
 
 # Citation
 @inproceedings{yoon2023hear,
+
   title={HEAR: Hearing Enhanced Audio Response for Video-grounded Dialogue},
+
   author={Yoon, Sunjae and Kim, Dahyun and Yoon, Eunseop and Yoon, Hee and Kim, Junyeong and Yoo, Chang},
+
   booktitle={Findings of the Association for Computational Linguistics: EMNLP 2023},
+
   pages={11911--11924},
+
   year={2023}
 }
 
